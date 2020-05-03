@@ -1,29 +1,45 @@
 package com.company;
 
-public class Robot implements Runnable {
-    private TaskHolder taskHolder;
-    private Subject subject;
-    private int tasksAmount;
+import java.util.concurrent.BlockingQueue;
 
-    public Robot(Subject subject, TaskHolder taskHolder) {
+public class Robot implements Runnable {
+    private Subject subject;
+    private BlockingQueue<Student> students;
+    private static int tasksAmount = 0;
+
+    public Robot(Subject subject, BlockingQueue<Student> students) {
         this.subject = subject;
-        this.taskHolder = taskHolder;
-        tasksAmount = 0;
+        this.students = students;
     }
 
     @Override
     public void run() {
         try {
-            final var tasks = taskHolder.getTasks(subject);
+            while (!Hydrac.GENERATION_FINISHED || !students.isEmpty()) {
+                final Student student = takeStudent(students, subject);
 
-            while (taskHolder.isWorks() || !tasks.isEmpty()) {
-                if (!tasks.isEmpty()) {
-                    tasks.take();
-                    System.out.println(String.format("%1$d task %2$s is completed.", ++tasksAmount, subject.name()));
+                if (student != null) {
+                    final var tasks = student.getTasks();
+
+                    for (var task : tasks) {
+                        System.out.println(String.format("%1$d task %2$s is completed.", ++tasksAmount, subject.name()));
+                    }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private synchronized static Student takeStudent(BlockingQueue<Student> students, Subject subject) throws InterruptedException {
+        if (students.isEmpty()) {
+            return null;
+        }
+
+        if (students.peek().getSubject().equals(subject)) {
+            return students.take();
+        }
+
+        return null;
     }
 }
